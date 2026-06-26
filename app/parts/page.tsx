@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import partsData from '@/data/parts.json'
 
 interface Part {
   id: string
@@ -29,64 +30,48 @@ const categories = [
 ]
 
 const categoryNames: Record<string, string> = {
-  cpu: 'CPU', motherboard: '主板', memory: '内存',
-  storage: '硬盘', gpu: '显卡', psu: '电源',
-  case: '机箱', cooler: '散热器',
+  cpu: 'CPU', motherboard: '主板', memory: '内存', storage: '硬盘',
+  gpu: '显卡', psu: '电源', case: '机箱', cooler: '散热器',
 }
 
 function formatSpecs(part: Part): string {
   const s = part.specs
   switch (part.category) {
-    case 'cpu':
-      return `${s.cores || '-'}核${s.threads || '-'}线程 · ${s.socket || ''} · ${s.boostClock || s.baseClock || '-'}GHz`
-    case 'motherboard':
-      return `${s.supportedSocket || ''} · ${s.formFactor || ''} · DDR${s.supportedMemoryType?.replace('DDR', '') || ''}`
-    case 'memory':
-      return `${s.capacity || '-'}GB · ${s.memoryType || ''} ${s.frequency || '-'}MHz`
-    case 'storage':
-      return `${s.capacityGB || '-'}GB ${s.storageType?.replace('_', '/') || ''} · 读${s.readSpeed || '-'}MB/s`
-    case 'gpu':
-      return `${s.vram || '-'}GB显存 · TDP ${s.tdpW || '-'}W`
-    case 'psu':
-      return `${s.wattage || '-'}W · ${s.certification || ''}`
-    case 'case':
-      return `支持${s.formFactorSupport?.join('/') || ''} · 显卡限长${s.maxGpuLength || '-'}mm`
-    case 'cooler':
-      return `高度${s.height || '-'}mm · 支持TDP ${s.tdpSupport || '-'}W`
-    default:
-      return ''
+    case 'cpu': return `${s.cores || '-'}核${s.threads || '-'}线程 · ${s.socket || ''} · ${s.boostClock || s.baseClock || '-'}GHz`
+    case 'motherboard': return `${s.supportedSocket || ''} · ${s.formFactor || ''} · DDR${s.supportedMemoryType?.replace('DDR', '') || ''}`
+    case 'memory': return `${s.capacity || '-'}GB · ${s.memoryType || ''} ${s.frequency || '-'}MHz`
+    case 'storage': return `${s.capacityGB || '-'}GB ${s.storageType?.replace('_', '/') || ''} · 读${s.readSpeed || '-'}MB/s`
+    case 'gpu': return `${s.vram || '-'}GB显存 · TDP ${s.tdpW || '-'}W`
+    case 'psu': return `${s.wattage || '-'}W · ${s.certification || ''}`
+    case 'case': return `支持${s.formFactorSupport?.join('/') || ''} · 显卡限长${s.maxGpuLength || '-'}mm`
+    case 'cooler': return `高度${s.height || '-'}mm · 支持TDP ${s.tdpSupport || '-'}W`
+    default: return ''
   }
 }
 
 export default function PartsPage() {
-  const [parts, setParts] = useState<Part[]>([])
-  const [loading, setLoading] = useState(true)
   const [activeCategory, setActiveCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [showCpsModal, setShowCpsModal] = useState<Part | null>(null)
 
-  useEffect(() => {
-    fetchParts()
-  }, [activeCategory, searchQuery])
+  // 从静态JSON加载，客户端过滤排序（GitHub Pages 静态导出兼容）
+  const allParts = (partsData as Part[]).sort((a, b) => b.popularity - a.popularity)
 
-  async function fetchParts() {
-    setLoading(true)
-    try {
-      let url = `/api/parts?pageSize=100`
-      if (activeCategory !== 'all') url += `&category=${activeCategory}`
-      if (searchQuery) url += `&q=${encodeURIComponent(searchQuery)}`
-      const res = await fetch(url)
-      const data = await res.json()
-      if (data.success) {
-        // 按热度排序
-        setParts(data.data.sort((a: Part, b: Part) => b.popularity - a.popularity))
-      }
-    } catch (err) {
-      console.error('加载配件失败:', err)
-    } finally {
-      setLoading(false)
+  const filteredParts = useMemo(() => {
+    let result = allParts
+    if (activeCategory !== 'all') {
+      result = result.filter(p => p.category === activeCategory)
     }
-  }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        p.brand.toLowerCase().includes(q) ||
+        (categoryNames[p.category] || '').toLowerCase().includes(q)
+      )
+    }
+    return result
+  }, [allParts, activeCategory, searchQuery])
 
   function handleBuyClick(e: React.MouseEvent, part: Part) {
     e.stopPropagation()
@@ -125,16 +110,8 @@ export default function PartsPage() {
         ))}
       </div>
 
-      {/* 加载状态 */}
-      {loading && (
-        <div style={{ textAlign: 'center', padding: '60px 0' }}>
-          <div className="loading-spinner"></div>
-          <p style={{ marginTop: '16px', color: '#909399' }}>正在加载配件...</p>
-        </div>
-      )}
-
       {/* 配件网格 */}
-      {!loading && parts.length === 0 && (
+      {filteredParts.length === 0 && (
         <div className="empty-state">
           <div className="empty-icon">📦</div>
           <div className="empty-text">暂无配件数据</div>
@@ -142,24 +119,18 @@ export default function PartsPage() {
         </div>
       )}
 
-      {!loading && parts.length > 0 && (
+      {filteredParts.length > 0 && (
         <div className="grid-4">
-          {parts.map((part) => (
+          {filteredParts.map((part) => (
             <div key={part.id} className="part-card">
               <div className="part-header">
                 <span className="part-name">{part.name}</span>
                 <span className="part-brand">{part.brand}</span>
               </div>
-
-              <div style={{
-                fontSize: '12px', color: '#1890ff', fontWeight: 600,
-                marginBottom: '6px'
-              }}>
+              <div style={{ fontSize: '12px', color: '#1890ff', fontWeight: 600, marginBottom: '6px' }}>
                 🏷️ {categoryNames[part.category] || part.category}
               </div>
-
               <div className="part-specs">{formatSpecs(part)}</div>
-
               <div className="part-footer">
                 <div className="part-price">¥{part.price.toLocaleString()}</div>
                 <button
@@ -198,7 +169,6 @@ export default function PartsPage() {
             <p style={{ color: '#909399', fontSize: '13px', marginBottom: '20px' }}>
               点击下方链接前往第三方平台购买，通过本站链接下单可获得{Math.max(...showCpsModal.cpsLinks.map(c => c.commissionRate)) * 100}%返佣
             </p>
-
             {showCpsModal.cpsLinks.map(link => (
               <a
                 key={link.platform}
@@ -208,8 +178,7 @@ export default function PartsPage() {
                 style={{
                   display: 'block', padding: '14px 18px', marginBottom: '10px',
                   border: '1px solid #dcdfe6', borderRadius: '8px',
-                  textDecoration: 'none !important',
-                  transition: 'all 0.25s ease',
+                  textDecoration: 'none !important', transition: 'all 0.25s ease',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.borderColor = '#1890ff'
@@ -233,7 +202,6 @@ export default function PartsPage() {
                 </div>
               </a>
             ))}
-
             <button
               onClick={() => setShowCpsModal(null)}
               style={{
