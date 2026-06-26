@@ -1,0 +1,1 @@
+{"name":"diy-pc-builder","version":"1.0.0","private":true,"scripts":{"dev":"next dev","build":"next build","start":"next start","lint":"next lint","seed":"npx tsx lib/init-data.ts"},"dependencies":{"next":"14.2.5","react":"18.3.1","typescript":"5.6.3"},"devDependencies":{"@types/node":"^20.11.3","@types/react":"^18.3.12"},"description":"壹米装机大师 — 电脑DIY装机配置平台"}
