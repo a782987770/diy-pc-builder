@@ -42,7 +42,7 @@ function formatSpecs(part: Part): string {
     case 'motherboard':
       return `${s.supportedSocket || ''} · ${s.formFactor || ''} · DDR${s.supportedMemoryType?.replace('DDR', '') || ''}`
     case 'memory':
-      return `${s.capacity || '-'}GB · ${s.memoryType || ''} ${s.frequency || '-}MHz`
+      return `${s.capacity || '-'}GB · ${s.memoryType || ''} ${s.frequency || '-'}MHz`
     case 'storage':
       return `${s.capacityGB || '-'}GB ${s.storageType?.replace('_', '/') || ''} · 读${s.readSpeed || '-'}MB/s`
     case 'gpu':
