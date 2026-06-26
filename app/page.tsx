@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
+import buildsData from '@/data/builds.json'
+import partsData from '@/data/parts.json'
 
 // ==================== 类型定义 ====================
 interface BuildPart {
@@ -78,53 +80,57 @@ export default function PlazaPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
 
-  // 加载数据
+  // 从静态JSON加载数据（GitHub Pages 静态导出兼容）
   useEffect(() => {
-    fetchBuilds()
-    fetchAllParts()
-  }, [activeSort, page])
-
-  async function fetchBuilds() {
-    setLoading(true)
     try {
-      const res = await fetch(`/api/builds?sort=${activeSort}&page=${page}&pageSize=12`)
-      const data = await res.json()
-      if (data.success) {
-        setBuilds(data.data.builds)
-        setTotalPages(data.data.totalPages)
-        setTotal(data.data.total)
-      }
+      // 加载装机方案
+      const allBuilds = buildsData as PCBuild[]
+      setTotal(allBuilds.length)
+      setTotalPages(Math.ceil(allBuilds.length / 12) || 1)
+
+      // 加载配件映射
+      const map: Record<string, Part> = {}
+      ;(partsData as Part[]).forEach((p: Part) => { map[p.id] = p })
+      setPartsMap(map)
+
+      // 应用排序和分页
+      applySortAndPage(allBuilds, activeSort, page)
     } catch (err) {
-      console.error('加载装机方案失败:', err)
+      console.error('加载数据失败:', err)
     } finally {
       setLoading(false)
     }
+  }, [activeSort, page])
+
+  function applySortAndPage(allBuilds: PCBuild[], sort: string, pageNum: number) {
+    let sorted = [...allBuilds]
+    switch (sort) {
+      case 'hot':
+        sorted.sort((a, b) => b.views - a.views)
+        break
+      case 'newest':
+        sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        break
+      case 'price_asc':
+        sorted.sort((a, b) => a.totalPrice - b.totalPrice)
+        break
+      case 'price_desc':
+        sorted.sort((a, b) => b.totalPrice - a.totalPrice)
+        break
+      case 'likes':
+        sorted.sort((a, b) => b.likes - a.likes)
+        break
+    }
+    const pageSize = 12
+    const start = (pageNum - 1) * pageSize
+    setBuilds(sorted.slice(start, start + pageSize))
   }
 
-  async function fetchAllParts() {
-    try {
-      const res = await fetch('/api/parts')
-      const data = await res.json()
-      if (data.success) {
-        const map: Record<string, Part> = {}
-        data.data.forEach((p: Part) => { map[p.id] = p })
-        setPartsMap(map)
-      }
-    } catch (err) {
-      console.error('加载配件库失败:', err)
-    }
-  }
-
-  // 点赞
-  async function handleLike(buildId: string) {
-    try {
-      await fetch(`/api/builds/${buildId}/like`, { method: 'POST' })
-      setBuilds(prev =>
-        prev.map(b => b.id === buildId ? { ...b, likes: b.likes + 1 } : b)
-      )
-    } catch (err) {
-      console.error('点赞失败:', err)
-    }
+  // 点赞（本地状态更新）
+  function handleLike(buildId: string) {
+    setBuilds(prev =>
+      prev.map(b => b.id === buildId ? { ...b, likes: b.likes + 1 } : b)
+    )
   }
 
   return (
