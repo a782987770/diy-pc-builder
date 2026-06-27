@@ -63,6 +63,13 @@ const categoryNames: Record<string, string> = {
   cooler: '散热器',
 }
 
+// ==================== 购买平台样式映射 ====================
+const platformStyle: Record<string, { bg: string; color: string; border: string; label: string }> = {
+  jd: { bg: '#e74c3c15', color: '#e74c3c', border: '#e74c3c30', label: '京东' },
+  taobao: { bg: '#ff6a0015', color: '#ff6a00', border: '#ff6a0030', label: '淘宝' },
+  etao: { bg: '#ff440015', color: '#ff4400', border: '#ff440030', label: '一淘返利' },
+}
+
 export default function BuildDetailClient() {
   const params = useParams()
   const [build, setBuild] = useState<PCBuild | null>(null)
@@ -186,7 +193,7 @@ export default function BuildDetailClient() {
         <div style={{ border: '1px solid #EBEEF5', borderRadius: '12px', overflow: 'hidden' }}>
           {/* 表头 */}
           <div style={{
-            display: 'grid', gridTemplateColumns: '36px 1fr 120px 120px 140px',
+            display: 'grid', gridTemplateColumns: '36px 1fr 120px 120px 180px',
             padding: '14px 20px', background: '#f5f7fa',
             borderBottom: '1px solid #EBEEF5', fontSize: '13px',
             fontWeight: 600, color: '#909399',
@@ -195,13 +202,13 @@ export default function BuildDetailClient() {
             <span>配件名称</span>
             <span>分类</span>
             <span>单价</span>
-            <span>购买链接</span>
+            <span>购买渠道（含返利）</span>
           </div>
 
           {/* 配件列表 */}
           {buildParts.map((part, index) => (
             <div key={part.id} style={{
-              display: 'grid', gridTemplateColumns: '36px 1fr 120px 120px 140px',
+              display: 'grid', gridTemplateColumns: '36px 1fr 120px 120px 180px',
               padding: '16px 20px', alignItems: 'center',
               borderBottom: index < buildParts.length - 1 ? '1px solid #f0f2f5' : 'none',
               transition: 'background 0.2s',
@@ -221,28 +228,34 @@ export default function BuildDetailClient() {
               <span style={{ fontWeight: 600, color: '#F56C6C', fontSize: '14px' }}>
                 ¥{part.price.toLocaleString()}
               </span>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                {part.cpsLinks?.slice(0, 2).map(link => (
-                  <a key={link.platform} href={link.url}
-                    target="_blank" rel="noopener noreferrer"
-                    style={{
-                      fontSize: '11px', padding: '3px 8px', borderRadius: '6px',
-                      textDecoration: 'none', whiteSpace: 'nowrap',
-                      background: link.platform === 'jd' ? '#e74c3c15' : '#ff6a0015',
-                      color: link.platform === 'jd' ? '#e74c3c' : '#ff6a00',
-                      border: `1px solid ${link.platform === 'jd' ? '#e74c3c30' : '#ff6a0030'}`,
-                    }}
-                  >
-                    {link.platform === 'jd' ? '京东' : link.platform === 'taobao' ? '淘宝' : link.platform}
-                  </a>
-                ))}
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {part.cpsLinks?.map(link => {
+                  const style = platformStyle[link.platform] || platformStyle.taobao
+                  return (
+                    <a key={link.platform} href={link.url}
+                      target="_blank" rel="noopener noreferrer"
+                      title={`${style.label} | 佣金${(link.commissionRate * 100).toFixed(0)}% | ¥${link.priceAtPlatform.toLocaleString()}`}
+                      style={{
+                        fontSize: '11px', padding: '3px 8px', borderRadius: '6px',
+                        textDecoration: 'none', whiteSpace: 'nowrap',
+                        background: style.bg, color: style.color,
+                        border: `1px solid ${style.border}`,
+                      }}
+                    >
+                      {style.label}
+                      {link.platform === 'etao' && (
+                        <span style={{ marginLeft: '2px', fontSize: '9px' }}>↑{(link.commissionRate * 100).toFixed(0)}%</span>
+                      )}
+                    </a>
+                  )
+                })}
               </div>
             </div>
           ))}
 
           {/* 合计行 */}
           <div style={{
-            display: 'grid', gridTemplateColumns: '36px 1fr 120px 120px 140px',
+            display: 'grid', gridTemplateColumns: '36px 1fr 120px 120px 180px',
             padding: '16px 20px', background: '#fafbfc',
             alignItems: 'center', fontWeight: 600,
           }}>
